@@ -2,11 +2,15 @@
 #define QGCIDE_H
 
 #include <QWidget>
-#include <QTextEdit>
+#include <QLineEdit>
 #include <QTextBrowser>
 #include <QGridLayout>
 #include <QMainWindow>
 #include <QMenuBar>
+#include <QDir>
+#include <QMessageBox>
+#include <QBuffer>
+#include <QXmlSimpleReader>
 
 class QDictWidget : public QWidget
 {
@@ -16,11 +20,15 @@ public:
 
 private:
     QGridLayout *layout;
-    QTextEdit *textEdit;
-    QTextBrowser *textBrowser;
+    QLineEdit *edit;
+    QTextBrowser *browser;
+    QFile dictFile;
+    void showErr(QString);
+    bool ensureDictFile();
+    QString searchExpr(const QString &);
 
 private slots:
-    bool textChanged(const QString& text);
+    void textChanged(const QString &);
 };
 
 class QDictMainWindow : public QMainWindow
@@ -31,6 +39,22 @@ public:
 
 private:
     QDictWidget *dw;
+};
+
+class GcideXmlHandler : public QXmlDefaultHandler
+{
+public:
+    GcideXmlHandler();
+
+    bool startElement(const QString &namespaceURI, const QString &localName,
+                      const QString &qName, const QXmlAttributes &attributes);
+    bool endElement(const QString &namespaceURI, const QString &localName,
+                    const QString &qName);
+    bool characters(const QString &str);
+    bool fatalError(const QXmlParseException &exception);
+
+    bool skip;
+    QString html;
 };
 
 #endif

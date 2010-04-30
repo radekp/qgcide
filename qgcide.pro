@@ -7,7 +7,7 @@
 TARGET = qgcide
 TEMPLATE = app
 
-QT          += core gui network
+QT          += core gui network xml
 
 SOURCES += src/main.cpp\
         src/qgcide.cpp
