@@ -1,0 +1,10 @@
+[Translation]
+File=QtopiaApplications
+Context=QGcide
+[Desktop Entry]
+Comment[]=An English Dictionary Program
+Exec=qgcide
+Icon=qgcide/qgcide
+Type=Application
+Name[]=English Dictionary
+Categories=MainApplications

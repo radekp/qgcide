@@ -1,0 +1,4 @@
+Qgcide is simple english explanatory dictionary frontent which uses database
+from GCIDE project http://www.ibiblio.org/webster/
+
+Dictionary will be downloaded when programs starts up.
