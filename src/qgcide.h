@@ -16,6 +16,10 @@
 #include <QProgressBar>
 #include <QProcess>
 
+#ifdef QTOPIA
+#include <QtopiaApplication>
+#endif
+
 class QDictWidget : public QWidget
 {
     Q_OBJECT
