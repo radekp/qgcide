@@ -56,9 +56,30 @@ bool QDictWidget::ensureDictFile()
         return true;
     }
     // TODO: download from internet
+    return false;
 }
 
-QString QDictWidget::searchExpr(const QString &expr)
+// Compare current key and searched expression.
+static int compareExprKey(const QString &expr, const QString &key)
+{
+    for(int i = 0; i < expr.length(); i++)
+    {
+        if(i >= key.length())
+        {
+            return 1;       // expression is bigger
+        }
+        QChar ech = expr.at(i).toUpper();
+        QChar kch = key.at(i).toUpper();
+        if(ech == kch)
+        {
+            continue;
+        }
+        return ech.unicode() - kch.unicode();
+    }
+    return 0;
+}
+
+QString QDictWidget::searchExpr(const QString &expr, int maxResults)
 {
     if(!ensureDictFile())
     {
@@ -68,10 +89,23 @@ QString QDictWidget::searchExpr(const QString &expr)
     {
         return tr("Unable to open dictionary file ") + dictFile.fileName() + "\n\n" + dictFile.errorString();
     }
+
+    // Start searching from the middle
+    qint64 left = 0;
+    qint64 right = dictFile.size() - 4096;
+    dictFile.seek((left + right) / 2);
+
+    // 0 = find some matching expression
+    // 1 = go backwards to find first non matching expr
+    // 2 = go forward for first matching expr
+    // 3 = appending text inside matching entry
+    // 4 = skipping text outside entry
+    int phase = 0;
+
     QString exprString("<entry key=\"" + expr);
-    char buf[4096];
-    bool found = false;
+    char buf[4096];    
     QString result;
+    int numResults = 0;
     for(;;)
     {
         int readRes = dictFile.readLine(&buf[0], 4096);
@@ -91,7 +125,7 @@ QString QDictWidget::searchExpr(const QString &expr)
         {
             continue;   // empty line
         }
-        if(found)
+        if(phase == 3)
         {
             QString line(buf);
             int entryEnd = line.indexOf("</entry>");
@@ -101,28 +135,83 @@ QString QDictWidget::searchExpr(const QString &expr)
                 continue;
             }
             result += line.left(entryEnd + 8);
-            found = false;
-            continue;
-        }
-        if(!strstr(buf, "<entry key=\""))
-        {
-            continue;
-        }
-        QString str = QString::fromUtf8(buf);
-        int entryStart = str.indexOf(exprString, 0, Qt::CaseInsensitive);
-        if(entryStart < 0)
-        {
-            if(result.length() > 0)
+            numResults++;
+            if(numResults > maxResults)
             {
                 break;
             }
+            phase = 4;
+            continue;
+        }
+        char *keyStart = strstr(buf, "<entry key=\"");
+        if(keyStart == 0)
+        {
+            continue;
+        }
+        keyStart += 12;
+        char *keyEnd = strchr(keyStart, '"');
+        QString key = QString::fromUtf8(keyStart, keyEnd - keyStart);
+        int cmp = compareExprKey(expr, key);
+        if(phase == 0)
+        {
+            if(cmp == 0)
+            {
+                phase = 1;
+            }
             else
             {
+                if(cmp > 0)      // expression is bigger then key
+                {
+                    left = dictFile.pos();
+                }
+                else
+                {
+                    right = dictFile.pos();
+                }
+                if(right - left <= 32)
+                {
+                    break;      // not found
+                }
+                dictFile.seek((left + right) / 2);
                 continue;
             }
         }
-        result += str.right(entryStart - exprString.length());
-        found = true;
+        if(phase == 1)
+        {
+            if(cmp == 0)        // we have match, let's move backwards
+            {
+                qint64 newPos = dictFile.pos() - 65535;
+                if(newPos <= 0)
+                {
+                    newPos = 0;
+                    phase = 2;
+                }
+                dictFile.seek(newPos);
+            }
+            else
+            {
+                phase = 2;
+            }
+        }
+        if(phase == 2)
+        {
+            if(cmp != 0)
+            {
+                continue;
+            }
+            phase = 3;
+        }
+        if(phase == 3 || phase == 4)
+        {
+            QString str = QString::fromUtf8(buf);
+            int entryStart = str.indexOf(exprString, 0, Qt::CaseInsensitive);
+            if(entryStart < 0)
+            {
+                break;      // first non matching entry was hit
+            }
+            result += str.right(entryStart - exprString.length());
+            phase = 3;
+        }
     }
     dictFile.close();
     if(result.length() == 0)
@@ -148,7 +237,7 @@ static QString toHtml(QString &xml)
 void QDictWidget::textChanged(const QString &text)
 {
     QString xml = "<entries>";
-    xml += searchExpr(text);
+    xml += searchExpr(text, 32);
     xml += "</entries>";
     QString html = toHtml(xml);
     browser->setText(html);
@@ -240,9 +329,9 @@ bool GcideXmlHandler::characters(const QString &str)
 bool GcideXmlHandler::fatalError(const QXmlParseException &exception)
 {
     html += QObject::tr("Parse error at line %1, column %2:\n%3")
-                             .arg(exception.lineNumber())
-                             .arg(exception.columnNumber())
-                             .arg(exception.message());
+            .arg(exception.lineNumber())
+            .arg(exception.columnNumber())
+            .arg(exception.message());
     return false;
 }
 

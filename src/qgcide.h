@@ -25,7 +25,7 @@ private:
     QFile dictFile;
     void showErr(QString);
     bool ensureDictFile();
-    QString searchExpr(const QString &);
+    QString searchExpr(const QString &, int maxResults);
 
 private slots:
     void textChanged(const QString &);
