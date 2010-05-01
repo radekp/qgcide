@@ -11,6 +11,10 @@
 #include <QMessageBox>
 #include <QBuffer>
 #include <QXmlSimpleReader>
+#include <QTcpSocket>
+#include <QApplication>
+#include <QProgressBar>
+#include <QProcess>
 
 class QDictWidget : public QWidget
 {
@@ -22,8 +26,11 @@ private:
     QGridLayout *layout;
     QLineEdit *edit;
     QTextBrowser *browser;
+    QProgressBar *progress;
     QFile dictFile;
     void showErr(QString);
+    bool download(QString url, QString destPath, QString filename);
+    bool ungzip(QString file);
     bool ensureDictFile();
     QString searchExpr(const QString &, int maxResults);
 

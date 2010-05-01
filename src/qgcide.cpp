@@ -3,7 +3,7 @@
 QDictMainWindow::QDictMainWindow(QWidget* parent, Qt::WindowFlags f) : QMainWindow(parent, f)
 {
     setWindowTitle(tr("English dictionary"));
-    QMenu *menu = menuBar()->addMenu("&File");
+    //QMenu *menu = menuBar()->addMenu("&File");
 
     dw = new QDictWidget(this);
     setCentralWidget(dw);
@@ -19,8 +19,12 @@ QDictWidget::QDictWidget(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f
 
     browser = new QTextBrowser(this);
 
+    progress = new QProgressBar(this);
+    progress->setVisible(false);
+
     layout->addWidget(edit, 0, 0);
     layout->addWidget(browser, 1, 0);
+    layout->addWidget(progress);
 
     setLayout(layout);
 }
@@ -28,6 +32,173 @@ QDictWidget::QDictWidget(QWidget* parent, Qt::WindowFlags f) : QWidget(parent, f
 void QDictWidget::showErr(QString err)
 {
     QMessageBox::critical(this, tr("English dictionary"), err);
+}
+
+bool QDictWidget::download(QString url, QString destPath, QString filename)
+{
+    browser->setText(tr("Downloading") + " " + filename);
+
+    QString host = url;
+    QString reqPath;
+    int port = 80;
+
+    if(url.startsWith("http://"))
+    {
+        host.remove(0, 7);
+    }
+
+    int colonIndex = host.indexOf(':');
+    int slashIndex = host.indexOf('/');
+    if(slashIndex < 0)
+    {
+        return false;
+    }
+    reqPath = host.right(host.length() - slashIndex).replace(" ", "%20");
+    host = host.left(slashIndex);
+    if(colonIndex > 0)
+    {
+        QString portStr = host.right(host.length() - colonIndex - 1);
+        host = host.left(colonIndex);
+        port = portStr.toInt(0, 10);
+    }
+
+connect:
+    QTcpSocket sock(this);
+    sock.setReadBufferSize(65535);
+    sock.connectToHost(host, port);
+    if(!sock.waitForConnected(5000))
+    {
+        showErr(sock.errorString());
+        return false;
+    }
+
+    QByteArray req("GET ");
+    req.append(reqPath);
+    req.append(" HTTP/1.1\r\nHost: ");
+    req.append(host);
+    req.append(':');
+    req.append(QByteArray::number(port));
+    req.append("\r\n\r\n");
+
+    sock.write(req);
+    sock.flush();
+    sock.waitForBytesWritten();
+
+    int contentLen = 0;
+    bool html = false;
+    QByteArray line;
+    for(;;)
+    {
+        line = sock.readLine();
+        if(line.isEmpty())
+        {
+            if(sock.waitForReadyRead(5000))
+            {
+                continue;
+            }
+            break;
+        }
+        if(line.trimmed().isEmpty())
+        {
+            break;
+        }
+        html = html | (line.indexOf("Content-Type: text/html") == 0);
+        if(line.indexOf("Content-Length: ") == 0)
+        {
+            contentLen = line.remove(0, 16).trimmed().toInt(0, 10);
+        }
+    }
+
+    if(html)
+    {
+        QByteArray text = sock.readAll();
+        sock.close();
+        if(text.length() == 0)
+        {
+            QMessageBox::critical(this, tr("English dictionary"),
+                                  tr("No response from ") + host);
+            return false;
+        }
+        text.replace("</br>", "\n");
+        if(QMessageBox::information(this, tr("English dictionary"), text,
+                                 QMessageBox::Ok | QMessageBox::Retry) == QMessageBox::Retry)
+        {
+            goto connect;
+        }
+
+        return false;
+    }
+
+    QFile f(destPath);
+    if(!f.open(QFile::WriteOnly))
+    {
+        QMessageBox::critical(this, tr("English dictionary"),
+                              tr("Unable to save file:\r\n\r\n") + f.errorString());
+        sock.close();
+        return false;
+    }
+
+#ifdef QTOPIA
+     QtopiaApplication::setPowerConstraint(QtopiaApplication::DisableSuspend);
+#endif
+
+    if(contentLen <= 0)
+    {
+        QMessageBox::critical(this, tr("English dictionary"), tr("Couldnt read content length"));
+        contentLen = 0x7fffffff;
+    }
+    progress->setMaximum(contentLen);
+    progress->setValue(0);
+    int remains = contentLen;
+
+    char buf[65535];
+    int count;
+    for(;;)
+    {
+        QApplication::processEvents();
+        count = sock.read(buf, 65535);
+        if(count < 0)
+        {
+            break;
+        }
+        f.write(buf, count);
+        f.flush();
+        remains -= count;
+        if(remains <= 0)
+        {
+            break;
+        }
+        progress->setValue(contentLen - remains);
+    }
+    f.close();
+    sock.close();
+
+#ifdef QTOPIA
+    QtopiaApplication::setPowerConstraint(QtopiaApplication::Enable);
+#endif
+
+    return true;
+}
+
+bool QDictWidget::ungzip(QString file)
+{
+    progress->setMaximum(10);
+    progress->setValue(0);
+
+    QProcess gzip;
+    gzip.start("gzip", QStringList() << "-d" << file);
+    if(!gzip.waitForStarted())
+    {
+        showErr(tr("Unable to start gzip"));
+        return false;
+    }
+    while(gzip.state() == QProcess::Running)
+    {
+        progress->setValue(progress->value() % 10);
+        QApplication::processEvents();
+        gzip.waitForFinished(100);
+    }
+    return true;
 }
 
 bool QDictWidget::ensureDictFile()
@@ -55,8 +226,23 @@ bool QDictWidget::ensureDictFile()
     {
         return true;
     }
-    // TODO: download from internet
-    return false;
+    if(QMessageBox::question(this, tr("English dictionary"),
+                          tr("Dictionary must be downloaded. Please make sure you have internet connection and press yes to confirm download (14MB)."),
+                          QMessageBox::Yes, QMessageBox::No) == QMessageBox::No)
+    {
+        return false;
+    }
+    progress->setVisible(true);
+    QString gzFile = dictFile.fileName() + ".gz";
+    if(!download("http://dl.linuxphone.ru/openmoko/qtmoko/packages/gcide-entries.xml.gz", gzFile, "gcide-entries.xml.gz"))
+    {
+        return false;
+    }
+    if(!ungzip(gzFile))
+    {
+        return false;
+    }
+    return true;
 }
 
 // Compare current key and searched expression.
