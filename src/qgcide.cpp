@@ -159,6 +159,10 @@ bool GcideXmlHandler::startElement(const QString & /* namespaceURI */,
     {
         html += "<b>";
     }
+    else if(qName == "def")         // definition
+    {
+        skip = false;
+    }
     else if(qName == "sn")          // senses <sn no="1">....</sn>
     {
         if(html.endsWith("</ol>"))
@@ -194,6 +198,10 @@ bool GcideXmlHandler::endElement(const QString & /* namespaceURI */,
     if(qName == "ex")
     {
         html += "</b>";
+    }
+    else if(qName == "def")
+    {
+        skip = true;
     }
     else if(qName == "sn")
     {
