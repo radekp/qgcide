@@ -163,10 +163,14 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
                 changed = (right != dictFile.pos());    // comparing twice same word
                 right = dictFile.pos();
             }
-            if(changed)
+            if(changed && (right - left > 4096))
             {
                 dictFile.seek((left + right) / 2);
                 continue;
+            }
+            if(cmp != 0)
+            {
+                break;
             }
             phase = 1;
         }
