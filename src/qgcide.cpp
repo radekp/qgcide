@@ -96,10 +96,9 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
     dictFile.seek((left + right) / 2);
 
     // 0 = find some matching expression
-    // 1 = go backwards to find first non matching expr
-    // 2 = go forward for first matching expr
-    // 3 = appending text inside matching entry
-    // 4 = skipping text outside entry
+    // 1 = go forward for first matching expr
+    // 2 = appending text inside matching entry
+    // 3 = skipping text outside entry
     int phase = 0;
 
     QString exprString("<entry key=\"" + expr);
@@ -125,7 +124,7 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
         {
             continue;   // empty line
         }
-        if(phase == 3)
+        if(phase == 2)
         {
             QString line(buf);
             int entryEnd = line.indexOf("</entry>");
@@ -140,7 +139,7 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
             {
                 break;
             }
-            phase = 4;
+            phase = 3;
             continue;
         }
         char *keyStart = strstr(buf, "<entry key=\"");
@@ -154,54 +153,32 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
         int cmp = compareExprKey(expr, key);
         if(phase == 0)
         {
-            if(cmp == 0)
+            bool changed = true;
+            if(cmp > 0)      // expression is bigger then key
             {
-                phase = 1;
+                left = dictFile.pos();
             }
-            else
+            else            // expression is smaller or matches
             {
-                if(cmp > 0)      // expression is bigger then key
-                {
-                    left = dictFile.pos();
-                }
-                else
-                {
-                    right = dictFile.pos();
-                }
-                if(right - left <= 32)
-                {
-                    break;      // not found
-                }
+                changed = (right != dictFile.pos());    // comparing twice same word
+                right = dictFile.pos();
+            }
+            if(changed)
+            {
                 dictFile.seek((left + right) / 2);
                 continue;
             }
+            phase = 1;
         }
         if(phase == 1)
-        {
-            if(cmp == 0)        // we have match, let's move backwards
-            {
-                qint64 newPos = dictFile.pos() - 65535;
-                if(newPos <= 0)
-                {
-                    newPos = 0;
-                    phase = 2;
-                }
-                dictFile.seek(newPos);
-            }
-            else
-            {
-                phase = 2;
-            }
-        }
-        if(phase == 2)
         {
             if(cmp != 0)
             {
                 continue;
             }
-            phase = 3;
+            phase = 2;
         }
-        if(phase == 3 || phase == 4)
+        if(phase == 2 || phase == 3)
         {
             QString str = QString::fromUtf8(buf);
             int entryStart = str.indexOf(exprString, 0, Qt::CaseInsensitive);
@@ -210,7 +187,7 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
                 break;      // first non matching entry was hit
             }
             result += str.right(entryStart - exprString.length());
-            phase = 3;
+            phase = 2;
         }
     }
     dictFile.close();
