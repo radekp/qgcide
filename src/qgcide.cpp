@@ -79,10 +79,7 @@ QString QDictWidget::searchExpr(const QString &expr)
         {
             if(dictFile.atEnd())
             {
-                if(result.length() == 0)
-                {
-                    result = tr("Phrase not found");
-                }
+                break;
             }
             else
             {
@@ -115,12 +112,23 @@ QString QDictWidget::searchExpr(const QString &expr)
         int entryStart = str.indexOf(exprString, 0, Qt::CaseInsensitive);
         if(entryStart < 0)
         {
-            continue;
+            if(result.length() > 0)
+            {
+                break;
+            }
+            else
+            {
+                continue;
+            }
         }
         result += str.right(entryStart - exprString.length());
         found = true;
     }
     dictFile.close();
+    if(result.length() == 0)
+    {
+        result = tr("Expression not found");
+    }
     return result;
 }
 
