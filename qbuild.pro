@@ -15,8 +15,8 @@ LIBS+=-lglib-2.0
 
 # Package info
 pkg [
-    name=qdictopia
-    desc="A Dictionary Program for GCIDE"
+    name=qgcide-eng-dictionary
+    desc="A Dictionary Program for GCIDE database"
     license=GPLv2
     version=1.0
     maintainer="Radek Polak <psonek2@seznam.cz>"

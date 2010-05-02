@@ -17,6 +17,7 @@
 #include <QProcess>
 
 #ifdef QTOPIA
+#include <QSoftMenuBar>
 #include <QtopiaApplication>
 #endif
 

@@ -3,7 +3,15 @@
 QDictMainWindow::QDictMainWindow(QWidget* parent, Qt::WindowFlags f) : QMainWindow(parent, f)
 {
     setWindowTitle(tr("English dictionary"));
-    //QMenu *menu = menuBar()->addMenu("&File");
+
+#ifdef QTOPIA
+    QMenu* m = QSoftMenuBar::menuFor(this);
+    m->addAction("");
+#else
+    QMenu *m = menuBar()->addMenu("&File");
+    resize(640, 480);
+#endif
+    m->addAction(tr("Quit"), this, SLOT(close()));
 
     dw = new QDictWidget(this);
     setCentralWidget(dw);
@@ -182,7 +190,8 @@ connect:
 
 bool QDictWidget::ungzip(QString file)
 {
-    progress->setMaximum(10);
+    browser->setText(tr("Unpacking") + " " + file);
+    progress->setMaximum(640);
     progress->setValue(0);
 
     QProcess gzip;
@@ -194,7 +203,7 @@ bool QDictWidget::ungzip(QString file)
     }
     while(gzip.state() == QProcess::Running)
     {
-        progress->setValue(progress->value() % 10);
+        progress->setValue((progress->value() + 1) % 640);
         QApplication::processEvents();
         gzip.waitForFinished(100);
     }
@@ -242,6 +251,7 @@ bool QDictWidget::ensureDictFile()
     {
         return false;
     }
+    progress->setVisible(false);
     return true;
 }
 
