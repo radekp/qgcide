@@ -21,6 +21,8 @@
 #include <QtopiaApplication>
 #endif
 
+#define UNCOMPARABLE_CHARS 0x12345678
+
 class QDictWidget : public QWidget
 {
     Q_OBJECT

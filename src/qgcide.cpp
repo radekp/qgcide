@@ -270,6 +270,10 @@ static int compareExprKey(const QString &expr, const QString &key)
         {
             continue;
         }
+        if(kch.unicode() > 128)
+        {
+            return UNCOMPARABLE_CHARS;
+        }
         return ech.unicode() - kch.unicode();
     }
     return 0;
@@ -301,7 +305,6 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
     char buf[4096];    
     QString result;
     int numResults = 0;
-    bool found = false;
     for(;;)
     {
         int readRes = dictFile.readLine(&buf[0], 4096);
@@ -348,9 +351,12 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
         char *keyEnd = strchr(keyStart, '"');
         QString key = QString::fromUtf8(keyStart, keyEnd - keyStart);
         int cmp = compareExprKey(expr, key);
+        if(cmp == UNCOMPARABLE_CHARS)
+        {
+            continue;        // skip uncomparable words
+        }
         if(phase == 0)
         {
-            found |= (cmp == 0);
             bool changed = true;
             if(cmp > 0)      // expression is bigger then key
             {
@@ -366,19 +372,19 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
                 dictFile.seek((left + right) / 2);
                 continue;
             }
-            if(!found)
-            {
-                break;
-            }
             phase = 1;
             dictFile.seek(left);
             continue;
         }
         if(phase == 1)
         {
-            if(cmp != 0)
+            if(cmp > 0)
             {
-                continue;
+                continue;           // first match still not found
+            }
+            else if(cmp < 0)
+            {
+                break;              // all matching words passed
             }
             phase = 2;
         }
