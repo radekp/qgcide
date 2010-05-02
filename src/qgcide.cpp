@@ -291,6 +291,7 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
     char buf[4096];    
     QString result;
     int numResults = 0;
+    bool found = false;
     for(;;)
     {
         int readRes = dictFile.readLine(&buf[0], 4096);
@@ -339,6 +340,7 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
         int cmp = compareExprKey(expr, key);
         if(phase == 0)
         {
+            found |= (cmp == 0);
             bool changed = true;
             if(cmp > 0)      // expression is bigger then key
             {
@@ -354,11 +356,13 @@ QString QDictWidget::searchExpr(const QString &expr, int maxResults)
                 dictFile.seek((left + right) / 2);
                 continue;
             }
-            if(cmp != 0)
+            if(!found)
             {
                 break;
             }
             phase = 1;
+            dictFile.seek(left);
+            continue;
         }
         if(phase == 1)
         {
