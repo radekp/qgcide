@@ -16,7 +16,7 @@ LIBS+=-lglib-2.0
 # Package info
 pkg [
     name=qgcide-eng-dictionary
-    desc="A Dictionary Program for GCIDE database"
+    desc="An English explanatory dictionary with GCIDE database"
     license=GPLv2
     version=1.0
     maintainer="Radek Polak <psonek2@seznam.cz>"
