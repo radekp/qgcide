@@ -270,7 +270,7 @@ static int compareExprKey(const QString &expr, const QString &key)
         {
             continue;
         }
-        if(kch.unicode() > 128)
+        if(!kch.isLetterOrNumber() || kch.unicode() > 128)
         {
             return UNCOMPARABLE_CHARS;
         }
