@@ -8,11 +8,6 @@ DEFINES+=QTOPIA
 STRING_LANGUAGE=en_US
 LANGUAGES=en_US
 
-INCLUDEPATH+=/usr/include/glib-2.0 \
-             /usr/lib/glib-2.0/include
-
-LIBS+=-lglib-2.0
-
 # Package info
 pkg [
     name=qgcide-eng-dictionary
